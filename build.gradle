@@ -9,15 +9,19 @@ mainClassName = 'org.example.Main'
 group = 'org.example'
 version = '1.0-SNAPSHOT'
 
+//ext {
+//    launcherClassName = "io.vertx.core.Launcher"
+//}
+
 repositories {
     mavenCentral()
 }
 
 graalvmNative {
 
-//    agent {
+    agent {
 //        defaultMode = "standard" // Default agent mode if one isn't specified using `-Pagent=mode_name`
-//        enabled = true // Enables the agent
+        enabled = true // Enables the agent
 //
 //        modes {
 //            // The standard agent mode generates metadata without conditions.
@@ -42,7 +46,9 @@ graalvmNative {
 //        builtinHeuristicFilter = true
 //        enableExperimentalPredefinedClasses = false
 //        enableExperimentalUnsafeAllocationTracing = false
-//        trackReflectionMetadata = true
+
+        //trackReflectionMetadata = true
+
 //
 //        // Copies metadata collected from tasks into the specified directories.
 //        metadataCopy {
@@ -56,13 +62,13 @@ graalvmNative {
 //        This can be limited to only specific tasks that match this predicate.
 //         */
 //        tasksToInstrumentPredicate = t -> true
-//    }
+    }
 
     binaries {
         main {
             // Main options
 //            imageName = 'application' // The name of the native image, defaults to the project name
-//            mainClass = 'org.test.Main' // The main class to use, defaults to the application.mainClass
+            mainClass = 'io.vertx.core.Launcher' // The main class to use, defaults to the application.mainClass
 //            debug = true // Determines if debug info should be generated, defaults to false (alternatively add --debug-native to the CLI)
 //            verbose = true // Add verbose output, defaults to false
 //            fallback = true // Sets the fallback mode of native-image, defaults to false
@@ -77,10 +83,16 @@ graalvmNative {
 //            excludeConfig.put(file("path/to/artifact.jar"), listOf("^/META-INF/native-image/.*", "^/config/.*"))
 
             // Advanced options
+//            reflection_config.json
 //            buildArgs.add('-H:Extra') // Passes '-H:Extra' to the native image builder options. This can be used to pass parameters which are not directly supported by this extension
 //            jvmArgs.add('flag') // Passes 'flag' directly to the JVM running the native image builder
 
+            buildArgs.add('-H:ReflectionConfigurationFiles=/home/ianj/dev/coinstrats/graalvm_gradle/META-INF/native-image/reflect-config.json') // Passes '-H:Extra' to the native image builder options. This can be used to pass parameters which are not directly supported by this extension
+            //buildArgs.add('-H:+AddAllCharsets')
+
             // Runtime options
+
+            runtimeArgs.add('run org.example.MainVerticle')
 //            runtimeArgs.add('--help') // Passes '--help' to built image, during "nativeRun" task
 //            useFatJar = true // Instead of passing each jar individually, builds a fat jar
 
@@ -102,6 +114,15 @@ graalvmNative {
 //            buildArgs.add('--trace-object-instantiation=org.apache.logging.log4j.util.PropertiesUtil,org.apache.logging.log4j.message.ReusableMessageFactory,org.apache.logging.log4j.spi.Provider,org.apache.logging.log4j.util.ProviderUtil,org.apache.logging.log4j.util.OsgiServiceLocator,org.apache.logging.log4j.ThreadContext,org.apache.logging.log4j.spi.DefaultThreadContextMap,org.apache.logging.log4j.status.StatusLogger,org.apache.logging.log4j.util.StackLocatorUtil,io.netty.util.internal.PlatformDependent,org.apache.logging.log4j.spi.ExtendedLoggerWrapper,org.apache.logging.log4j.spi.CopyOnWriteSortedArrayThreadContextMap,org.apache.logging.log4j.spi.DefaultThreadContextStack,org.apache.logging.log4j.spi.StandardLevel,org.apache.logging.log4j.spi.AbstractLogger,io.netty.util.internal.PlatformDependent0,org.apache.logging.log4j.util.Strings,org.apache.logging.log4j.util.StackLocator,io.netty.util.internal.logging.Log4J2Logger,org.apache.logging.log4j.spi.ThreadContextMapFactory,org.apache.logging.log4j.util.Constants,org.apache.logging.log4j.util.PropertySource$Util,io.netty.util.internal.SystemPropertyUtil,org.apache.logging.log4j.Level,org.apache.logging.log4j.simple.SimpleLogger,org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap,org.apache.logging.log4j.util.LoaderUtil,org.apache.logging.log4j.util.SortedArrayStringMap,org.apache.logging.log4j.LogManager,org.slf4j.LoggerFactory,org.apache.logging.log4j.spi.LoggerRegistry')
 
             buildArgs.add('--initialize-at-run-time=io.netty')
+            buildArgs.add('--initialize-at-run-time=org.jcodings.spi.Charsets')
+            //buildArgs.add('--initialize-at-run-time=org.jcodings')
+            //buildArgs.add('--initialize-at-run-time=com.sun.org.apache.xml.internal.serializer.Encodings')
+
+//            buildArgs.add('--initialize-at-run-time=org.apache.logging.log4j.spi.Provider')
+//            buildArgs.add('--trace-class-initialization=org.jcodings.spi.Charsets')
+//            ERROR StatusLogger Unable to load services for service class org.apache.logging.log4j.spi.Provider
+//            java.lang.InternalError: com.oracle.svm.core.jdk.UnsupportedFeatureError: Defining hidden classes at runtime is not supported.
+
         }
     }
 }
@@ -136,7 +157,7 @@ dependencies {
     // TOML
     implementation group: 'com.moandjiezana.toml', name: 'toml4j', version: '0.7.2'
     // Logging
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.20.0'
+    //implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.20.0'
     testImplementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.20.0'
     // async logger
     implementation group: 'com.lmax', name: 'disruptor', version: '4.0.0.RC1'
@@ -154,4 +175,14 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+jar {
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+    manifest {
+        attributes "Main-Class": "org.example.Main"
+    }
+   from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
